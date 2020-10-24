@@ -11,7 +11,9 @@ mkdir -p \
 if [[ $DISABLE_HTTPS -ne 1 ]]; then
     if [[ $ENABLE_LETSENCRYPT -eq 1 ]]; then
         if [[ ! -f /etc/letsencrypt/live/$LETSENCRYPT_DOMAIN/fullchain.pem ]]; then
-            if ! certbot certonly \
+            if ! certbot-auto \
+                  certonly \
+                  --no-self-upgrade \
                   --noninteractive \
                   --standalone \
                   --preferred-challenges http \
@@ -47,15 +49,10 @@ if [[ $DISABLE_HTTPS -ne 1 ]]; then
             openssl req -new -x509 -days 3650 -nodes -out /config/keys/cert.crt -keyout /config/keys/cert.key -subj "$SUBJECT"
         fi
     fi
-    if [[ ! -f /config/nginx/dhparams.pem ]]; then
-        openssl dhparam -out /config/nginx/dhparams.pem 2048
-    fi
 fi
 
 # copy config files
-if [[ ! -f /config/nginx/nginx.conf ]]; then
-    cp /defaults/nginx.conf /config/nginx/nginx.conf
-fi
+tpl /defaults/nginx.conf > /config/nginx/nginx.conf
 
 if [[ ! -f /config/nginx/meet.conf ]]; then
     tpl /defaults/meet.conf > /config/nginx/meet.conf
@@ -69,46 +66,11 @@ if [[ ! -f /config/nginx/site-confs/default ]]; then
     tpl /defaults/default > /config/nginx/site-confs/default
 fi
 
-if [[ ! -f /config/config.js ]]; then
-    cp /defaults/config.js /config/config.js
-    sed -i \
-        -e "s#jitsi-meet.example.com#$XMPP_DOMAIN#g" \
-        -e "s#bosh:.*#bosh: '${PUBLIC_URL}/http-bind',#" \
-        -e "s#muc:.*#muc: '${XMPP_MUC_DOMAIN}',#" \
-        -e "s#// focusUserJid:.*#focusUserJid: '${JICOFO_AUTH_USER}@${XMPP_AUTH_DOMAIN}',#" \
-        /config/config.js
-
-    if [[ $ENABLE_RECORDING -eq 1 || x$ENABLE_RECORDING == xtrue ]]; then
-        sed -i \
-            -e "/\/\/ Recording.*/a hiddenDomain: '$XMPP_RECORDER_DOMAIN'," \
-            -e "s#// fileRecordingsEnabled:.*#fileRecordingsEnabled: true,#" \
-            -e "s#// liveStreamingEnabled:.*#liveStreamingEnabled: true,#" \
-        /config/config.js
-    fi
-
-    if [[ $ENABLE_AUTH -eq 1 ]]; then
-        if [[ $ENABLE_GUESTS -eq 1 ]]; then
-            sed -i \
-                -e "s#// anonymousdomain:.*#anonymousdomain: '${XMPP_GUEST_DOMAIN}',#" \
-                /config/config.js
-        fi
-
-        sed -i \
-            -e "s#// authdomain:.*#authdomain: '${XMPP_DOMAIN}',#" \
-            /config/config.js
-    fi
-
-    if [[ ! -z "${ETHERPAD_URL_BASE}" && -z "$(grep -om1 'etherpad_base:' /config/config.js)" ]]; then
-        sed -i \
-            -e "/enableWelcomePage/a\    etherpad_base: '${PUBLIC_URL}/etherpad/p/'," \
-            /config/config.js
-    fi
-
-    if [[ $ENABLE_TRANSCRIPTIONS -eq 1 || "$ENABLE_TRANSCRIPTIONS" == "true" ]]; then
-        sed -i \
-             -e "s#// transcribingEnabled:.*#transcribingEnabled: true,#" \
-             /config/config.js
-    fi
+cp /defaults/config.js /config/config.js
+tpl /defaults/system-config.js >> /config/config.js
+tpl /defaults/settings-config.js >> /config/config.js
+if [[ -f /config/custom-config.js ]]; then
+    cat /config/custom-config.js >> /config/config.js
 fi
 
 if [[ ! -f /config/interface_config.js ]]; then
@@ -116,10 +78,9 @@ if [[ ! -f /config/interface_config.js ]]; then
 
     # It will remove parameter 'closedcaptions' from TOOLBAR_BUTTONS if ENABLE_TRANSCRIPTIONS is false,
     # because it enabled by default, but not supported out of the box.
-    if [[ $ENABLE_TRANSCRIPTIONS -ne 1 || "$ENABLE_TRANSCRIPTIONS" != "true" ]]; then
+    if [[ $ENABLE_TRANSCRIPTIONS -ne 1 && "$ENABLE_TRANSCRIPTIONS" != "true" ]]; then
         sed -i \
             -e "s#'closedcaptions', ##" \
             /config/interface_config.js
     fi
-
 fi

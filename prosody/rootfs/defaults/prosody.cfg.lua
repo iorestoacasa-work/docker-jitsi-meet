@@ -84,7 +84,7 @@ https_ports = { }
 modules_disabled = {
 	-- "offline"; -- Store offline messages
 	-- "c2s"; -- Handle client connections
-	-- "s2s"; -- Handle server-to-server connections
+	"s2s"; -- Handle server-to-server connections
 };
 
 -- Disable account creation by default, for security
@@ -126,7 +126,7 @@ s2s_secure_auth = false
 -- server please see http://prosody.im/doc/modules/mod_auth_internal_hashed
 -- for information about using the hashed backend.
 
-authentication = "internal_plain"
+authentication = "internal_hashed"
 
 -- Select the storage backend to use. By default Prosody uses flat files
 -- in its configured data directory, but it also supports more backends

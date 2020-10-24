@@ -2,3 +2,4 @@
 .env
 .jitsi-meet-cfg/
 .env.bak
+docker-compose.override.yml
