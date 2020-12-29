@@ -11,6 +11,8 @@ services:
         volumes:
             - ${CONFIG}/web:/config:Z
             - ${CONFIG}/transcripts:/usr/share/jitsi-meet/transcripts:Z
+            - ./interface_config.js:/config/interface_config.js
+            - ./watermark.png:/usr/share/jitsi-meet/images/watermark.png
         environment:
             - ENABLE_LETSENCRYPT
             - ENABLE_HTTP_REDIRECT
@@ -206,6 +208,7 @@ services:
         ports:
             - '${JVB_PORT}:${JVB_PORT}/udp'
             - '${JVB_TCP_PORT}:${JVB_TCP_PORT}'
+            - "127.0.0.1:8080:8080"
         volumes:
             - ${CONFIG}/jvb:/config:Z
         environment:
@@ -232,6 +235,20 @@ services:
             meet.jitsi:
                 aliases:
                     - jvb.meet.jitsi
+    exporter:
+        image: python:alpine
+        command: "python iorestoacasa_metrics.py"
+        restart: unless-stopped
+        network_mode: host
+        stop_signal: SIGKILL
+        ports:
+            - "8081:8081"
+        volumes:
+            - "./iorestoacasa_metrics.py:/app/iorestoacasa_metrics.py"
+            - "./bottle.py:/app/bottle.py"
+        working_dir: /app
+        environment:
+            - PYTHONUNBUFFERED=1
 
 # Custom network so all services can communicate using a FQDN
 networks:
